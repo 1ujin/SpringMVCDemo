@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- https://blog.csdn.net/c289054531/article/details/9196149 -->
+<!-- 配置文件，主要用于配置欢迎页、WebApplicationContext、Filter、Listener、Servlet等，但并不是必须的，一个Java Web项目没有web.xml文件也是照样能跑起来的 -->
+<!-- 先通过tomcat生成ApplicationContext（ServletContext的实现类，tomcat中的，区别于后面的spring中的） -->
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://java.sun.com/xml/ns/javaee"
+         xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
+         version="3.0">
+    <display-name>Spring MVC Application</display-name>
+
+    <!-- 配置里面的内容是由 Spring 生成的（聚合关系） -->
+    <!-- 真正的加载顺序，即标准写法： context-param -> listener -> filter -> servlet -->
+
+    <!--https://howtodoinjava.com/spring-mvc/contextloaderlistener-vs-dispatcherservlet/-->
+    <!-- 要配置一个唯一的根context对象，即WebApplicationContext，可以通过在servlet初始化参数中配置一个空的contextConfigLocation -->
+    <!-- spring以WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE为属性Key，将其存储到ServletContext中 -->
+    <!-- 作为其他servlet的父context，配置了各个servlet共享相同的bean -->
+    <!--To get root application context in Spring controller, you can use WebApplicationContextUtils class.-->
+    <!-- 没有任何context-param配置时会自动在WEB-INF路径下查找并加载applicationContext.xml -->
+    <!--也可以彻底不配置WebApplicationContext，先判断是否已经创建过ApplicationContext，所以只有一个，以第一个配置的为准-->
+    <context-param>
+        <description>全局context/根context</description>
+        <param-name>contextConfigLocation</param-name>
+        <!--修改默认配置的加载路径-->
+        <param-value>/WEB-INF/root-context1.xml</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>contextConfigLocation1</param-name>
+        <!--修改默认配置的加载路径-->
+        <param-value>/WEB-INF/root-context.xml</param-value>
+    </context-param>
+
+    <!-- https://cloud.tencent.com/developer/article/1407679 -->
+    <!--在web容器启动时，会触发容器初始化事件，此时ContextLoaderListener会监听到这个事件-->
+    <listener>
+        <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+    </listener>
+
+    <filter>
+        <filter-name>springUtf8Encoding</filter-name>
+        <filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+        <async-supported>true</async-supported>
+        <init-param>
+            <param-name>encoding</param-name>
+            <param-value>UTF-8</param-value>
+        </init-param>
+        <init-param>
+            <param-name>forceEncoding</param-name>
+            <param-value>true</param-value>
+        </init-param>
+    </filter>
+
+    <!-- 一个 filter 对应一个 filter-mapping -->
+    <filter-mapping>
+        <filter-name>springUtf8Encoding</filter-name>
+        <servlet-name>SpringMVCDemo</servlet-name>
+    </filter-mapping>
+
+    <filter>
+        <filter-name>httpPutFormFilter</filter-name>
+        <filter-class>org.springframework.web.filter.FormContentFilter</filter-class>
+        <async-supported>true</async-supported>
+    </filter>
+
+    <filter-mapping>
+        <filter-name>httpPutFormFilter</filter-name>
+        <servlet-name>SpringMVCDemo</servlet-name>
+    </filter-mapping>
+
+    <!-- 设置 Servlet 如：Dispatcher Servlet -->
+    <!-- 如果配置了<servlet>且没设置地址，会自动在WEB-INF路径下查找并加载"servlet-name"-servlet.xml -->
+    <!-- 先从ServletContext中获取之前的根上下文（即WebApplicationContext）作为自己上下文的parent上下：
+        wac.setParent(parent); -->
+    <!-- Spring MVC 初始化逻辑主要就是:
+        protected void initStrategies(ApplicationContext context) {
+            initMultipartResolver(context);
+            initLocaleResolver(context);
+            initThemeResolver(context);
+            initHandlerMappings(context);
+            initHandlerAdapters(context);
+            initHandlerExceptionResolvers(context);
+            initRequestToViewNameTranslator(context);
+            initViewResolvers(context);
+            initFlashMapManager(context);
+        }
+    -->
+    <servlet>
+        <servlet-name>SpringMVCDemo</servlet-name>
+        <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+        <!--要配置一个唯一的根context对象，可以通过在servlet初始化参数中配置一个空的contextConfigLocation-->
+        <init-param>
+            <param-name>contextConfigLocation</param-name>
+            <!--修改默认配置的加载路径-->
+            <param-value>/WEB-INF/static/SpringMVCDemo-servlet.xml</param-value>
+        </init-param>
+        <!--标记容器是否应该在web应用程序启动的时候就加载这个servlet，（实例化并调用其init方法）-->
+        <!--如果该元素的值为负数或者没有设置，则容器会当Servlet被请求时再加载-->
+        <!--该Servlet启动优先级为1（0最高），值相同时，容器就会自己选择顺序来加载-->
+        <load-on-startup>1</load-on-startup>
+        <!--支持异步设置-->
+        <async-supported>true</async-supported>
+        <multipart-config>
+            <max-file-size>20848820</max-file-size>
+            <max-request-size>418018841</max-request-size>
+            <file-size-threshold>1048576</file-size-threshold>
+        </multipart-config>
+    </servlet>
+
+    <!-- 一个 servlet 对应一个 servlet-mapping -->
+    <servlet-mapping>
+        <servlet-name>SpringMVCDemo</servlet-name>
+        <!--匹配规则：默认的servlet，使用contextVersion的defaultWrapper-->
+        <url-pattern>/</url-pattern>
+    </servlet-mapping>
+
+    <!-- 另一个 servlet，不支持异步，并且容器会当Servlet被请求时再加载 -->
+    <!-- 加载时会因为没有设置servlet配置文件而报错 -->
+    <servlet>
+        <servlet-name>dispatcherServlet</servlet-name>
+        <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+    </servlet>
+
+    <!-- 一个 servlet 对应一个 servlet-mapping -->
+    <servlet-mapping>
+        <servlet-name>dispatcherServlet</servlet-name>
+        <!--匹配规则：默认的servlet，使用contextVersion的defaultWrapper-->
+        <url-pattern>/dispatcher/*</url-pattern>
+    </servlet-mapping>
+
+    <!--More than one fragment with the name [spring_web] was found. This is not legal with relative ordering. See section 8.2.2 2c of the Servlet specification for details. Consider using absolute ordering.-->
+    <absolute-ordering/>
+</web-app>
